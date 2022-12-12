@@ -6,11 +6,13 @@ module Jekyll
   module Strapi
     class StrapiCollection
       attr_accessor :collection_name, :config
+      Hash results_by_uri
 
       def initialize(site, collection_name, config)
         @site = site
         @collection_name = collection_name
         @config = config
+        @results_by_uri = Hash.new( "null" )
       end
 
       def generate?
@@ -21,18 +23,23 @@ module Jekyll
         # Initialize the HTTP query
         path = "/#{@config['type'] || @collection_name}?_limit=10000"
         uri = URI("#{@site.endpoint}#{path}")
-        Jekyll.logger.info "Jekyll Strapi:", "Fetching entries from #{uri}"
-        # Get entries
-        response = Net::HTTP.get_response(uri)
-        # Check response code
-        if response.code == "200"
-          result = JSON.parse(response.body, object_class: OpenStruct)
-        elsif response.code == "401"
-          raise "The Strapi server sent a error with the following status: #{response.code}. Please make sure you authorized the API access in the Users & Permissions section of the Strapi admin panel."
-        else
-          raise "The Strapi server sent a error with the following status: #{response.code}. Please make sure it is correctly running."
-        end
 
+        result = @results_by_uri["#{@site.endpoint}#{path}"];
+
+        if result == "null"
+          Jekyll.logger.info "Jekyll Strapi:", "Fetching entries from #{uri}"
+          # Get entries
+          response = Net::HTTP.get_response(uri)
+          # Check response code
+          if response.code == "200"
+            result = JSON.parse(response.body, object_class: OpenStruct)
+            @results_by_uri["#{@site.endpoint}#{path}"] = result;
+          elsif response.code == "401"
+            raise "The Strapi server sent a error with the following status: #{response.code}. Please make sure you authorized the API access in the Users & Permissions section of the Strapi admin panel."
+          else
+            raise "The Strapi server sent a error with the following status: #{response.code}. Please make sure it is correctly running."
+          end
+        end
         # Add necessary properties
         result.each do |document|
           document.type = collection_name
@@ -40,7 +47,7 @@ module Jekyll
           document.id ||= document._id
           document.url = @site.strapi_link_resolver(collection_name, document)
         end
-
+  
         result.each {|x| yield(x)}
       end
     end
