@@ -5,8 +5,7 @@ require "json"
 module Jekyll
   module Strapi
     class StrapiCollection
-      attr_accessor :collection_name, :config
-      Hash results_by_uri
+      attr_accessor :collection_name, :config, :results_by_uri
 
       def initialize(site, collection_name, config)
         @site = site
